@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xmlns:p="http://www.springframework.org/schema/p"
+	xsi:schemaLocation="
+		http://www.springframework.org/schema/beans https://www.springframework.org/schema/beans/spring-beans.xsd
+		http://www.springframework.org/schema/batch https://www.springframework.org/schema/batch/spring-batch.xsd">
+
+
+<!-- 	<bean class="org.springframework.batch.core.scope.StepScope"/> -->
+ 
+ 	<bean name="jobListener" class="org.hung.batch.listener.JobListener"/>
+ 	
+ 	<bean name="stepListener" class="org.hung.batch.listener.StepListener"/>
+
+	<bean name="chunkListener" class="org.hung.batch.listener.ChunkListener"/>
+	
+	<bean name="executionContextPromotionListener" class="org.springframework.batch.core.listener.ExecutionContextPromotionListener">
+		<property name="keys">
+			<array value-type="java.lang.String">
+				<value>header</value>
+			</array>
+		</property>
+	</bean>
+ 	
+	<step id="echo-step" abstract="true" xmlns="http://www.springframework.org/schema/batch">
+		<tasklet ref="echoBean">
+		</tasklet>
+	</step>
+
+	<step id="read-stockquote" abstract="true" xmlns="http://www.springframework.org/schema/batch">
+		<tasklet> <!-- task-executor="threadPoolTaskExecutor"> -->
+			<chunk commit-interval="200"
+				skip-limit="5"
+				reader="stockQuoteReader"
+				processor="stockQuoteBeanValidator"
+				writer="stockQuoteWriter">
+				<skippable-exception-classes>
+					<include class="org.springframework.batch.item.validator.ValidationException"/>
+				</skippable-exception-classes>
+			</chunk>
+			<listeners>
+				<listener ref="chunkListener"/>
+				<listener ref="stepListener"/>
+			</listeners>
+		</tasklet>
+	</step>
+	
+	<job id="jobTemplate" abstract="true" xmlns="http://www.springframework.org/schema/batch">
+		<validator ref="jobParametersValidator"/>
+		<listeners>
+			<listener ref="jobListener"/>
+		</listeners>
+	</job>
+
+	<job id="testing" parent="jobTemplate" xmlns="http://www.springframework.org/schema/batch">
+		<step id="step1" parent="echo-step">
+			<next on="*" to="step2"/>
+			<listeners>
+				<listener ref="executionContextPromotionListener"/>
+			</listeners>
+		</step>
+		<step id="step2" parent="read-stockquote" next="step3">
+		</step>
+		<step id="step3">
+			<tasklet ref="echoBean2">
+			</tasklet>
+		</step>
+	</job>
+	
+	<job id="testing2" parent="jobTemplate" xmlns="http://www.springframework.org/schema/batch">
+		<step id="step1-2" parent="echo-step">
+			<next on="*" to="step2-2"/>
+		</step>
+		<step id="step2-2" parent="read-stockquote">
+		</step>
+	</job>	
+
+</beans>

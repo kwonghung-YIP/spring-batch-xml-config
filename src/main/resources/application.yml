@@ -1,0 +1,7 @@
+spring:
+  datasource:    schema:    - data-schema-h2.sql
+  batch:
+    job:
+      enabled: false
+      
+logging:  level:    org.springframework.batch: info
